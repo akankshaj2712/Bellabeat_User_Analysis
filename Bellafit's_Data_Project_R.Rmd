@@ -1,0 +1,541 @@
+---
+title: "Data_Preprocessing & Analysis"
+author: "Akanksha Jondhale"
+date: "2025-06-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data Cleaning
+
+This report outlines the data cleaning and preprocessing steps applied to the Bellafit datasets. Below is a high-level summary of the actions taken and data readiness status.
+
+18 datasets were imported and processed:
+
+Daily: daily_activity,daily_calories daily_intensities, daily_steps
+
+Hourly: hourly_steps, hourly_intensities, hourly_calories
+
+Minute: minute_mets_narrow,minute_calories_narrow,minute_calories_wide,minute_intensities_narrow,minute_intensities_wide,minute_steps_narrow,minute_steps_wide,minute_sleep_narrow
+
+Heartrate_Seconds and WeightLogInfo
+
+Out of 18 datasets, only 8 were processed further who had all 33 unique users.Rest of them were dropped since they contained less or few unique users data.
+
+Following datasets we will be using for further analysis:
+
+* daily_activity
+* daily_calories
+* daily_intensities
+* daily_steps
+* hourly_calories
+* hourly_intensities
+* hourly_steps
+* minute_mets_narrow
+
+Missing Values: No missing or null values detected in any dataset.
+
+Duplicates: Duplicate rows were identified and removed where applicable.
+
+Data Types: All date/time columns were successfully converted to appropriate formats (Date / POSIXct).
+
+Text Cleanup: All character columns were trimmed to remove leading/trailing whitespace.
+
+Column Consistency: Data types were reviewed and validated for each dataset.
+
+
+## Importing Libraries
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+```
+
+## Importing Data
+```{r}
+data_path <- "C:/Users/akank/Downloads/archive (7)/mturkfitbit_export_4.12.16-5.12.16/Fitabase Data 4.12.16-5.12.16/"
+daily_activity <- read_csv(paste0(data_path, "dailyActivity_merged.csv"))
+daily_calories <- read_csv(paste0(data_path, "dailyCalories_merged.csv"))
+daily_intensities <- read_csv(paste0(data_path, "dailyIntensities_merged.csv"))
+daily_steps <- read_csv(paste0(data_path, "dailySteps_merged.csv"))
+
+heartrate_seconds <- read_csv(paste0(data_path, "heartrate_seconds_merged.csv"))
+
+hourly_calories <- read_csv(paste0(data_path, "hourlyCalories_merged.csv"))
+hourly_intensities <- read_csv(paste0(data_path, "hourlyIntensities_merged.csv"))
+hourly_steps <- read_csv(paste0(data_path, "hourlySteps_merged.csv"))
+
+minute_calories_narrow <- read_csv(paste0(data_path, "minuteCaloriesNarrow_merged.csv"))
+minute_calories_wide <- read_csv(paste0(data_path, "minuteCaloriesWide_merged.csv"))
+
+minute_intensities_narrow <- read_csv(paste0(data_path, "minuteIntensitiesNarrow_merged.csv"))
+minute_intensities_wide <- read_csv(paste0(data_path, "minuteIntensitiesWide_merged.csv"))
+
+minute_mets_narrow <- read_csv(paste0(data_path, "minuteMETsNarrow_merged.csv"))
+
+minute_sleep <- read_csv(paste0(data_path, "minuteSleep_merged.csv"))
+
+minute_steps_narrow <- read_csv(paste0(data_path, "minuteStepsNarrow_merged.csv"))
+minute_steps_wide <- read_csv(paste0(data_path, "minuteStepsWide_merged.csv"))
+
+sleep_day <- read_csv(paste0(data_path, "sleepDay_merged.csv"))
+weight <- read_csv(paste0(data_path, "weightLogInfo_merged.csv"))
+```
+
+```{r}
+## Create a named list of your datasets
+datasets <- list(
+  daily_activity = daily_activity,
+  daily_calories = daily_calories,
+  daily_intensities = daily_intensities,
+  daily_steps = daily_steps,
+  heartrate_seconds = heartrate_seconds,
+  hourly_calories = hourly_calories,
+  hourly_intensities = hourly_intensities,
+  hourly_steps = hourly_steps,
+  minute_calories_narrow = minute_calories_narrow,
+  minute_calories_wide = minute_calories_wide,
+  minute_intensities_narrow = minute_intensities_narrow,
+  minute_intensities_wide = minute_intensities_wide,
+  minute_mets_narrow = minute_mets_narrow,
+  minute_sleep = minute_sleep,
+  minute_steps_narrow = minute_steps_narrow,
+  minute_steps_wide = minute_steps_wide,
+  sleep_day = sleep_day,
+  weight = weight
+)
+
+## Now generate a tibble with counts of unique Ids
+unique_ids <- tibble(
+  Dataset = names(datasets),
+  Unique_IDs = sapply(datasets, function(df) n_distinct(df$Id))
+  
+)
+## View the result
+print(unique_ids)
+
+```
+
+Since heartrate_seconds has only 14 unique users,weightlogInfo has 8,minuteSleep and sleep day have 24 unique users.We can drop those tables.
+We can also drop tables having user info at minute level about their calories,step,intensities since it contains same aggregated data at hour level.
+
+```{r}
+## Remove unwanted tibbles from Global Environment
+rm(heartrate_seconds, minute_calories_narrow, minute_calories_wide, minute_intensities_wide, minute_intensities_narrow, 
+   minute_steps_narrow, minute_steps_wide, minute_sleep, sleep_day, weight)
+```
+
+```{r}
+gc()
+```
+
+
+## Give record counts for datasets
+```{r}
+## List of datasets
+datasets <- list(
+  daily_activity = daily_activity,
+  daily_intensities = daily_intensities,
+  daily_steps = daily_steps,
+  hourly_steps = hourly_steps,
+  hourly_intensities = hourly_intensities,
+  hourly_calories = hourly_calories,
+  minute_mets_narrow = minute_mets_narrow
+)
+
+record_counts <- tibble(
+  Dataset = names(datasets),
+  Rows = map_int(datasets, nrow)
+)
+
+ggplot(record_counts, aes(x = Dataset, y = Rows)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = Rows), vjust = -0.3, size = 4.5) +
+  labs(title = "Record Count by Dataset",
+       x = "Dataset", y = "Number of Rows") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+## Check for missing/null values
+```{r}
+colSums(is.na(daily_activity))
+colSums(is.na(daily_calories))
+colSums(is.na(daily_intensities))
+colSums(is.na(daily_steps))
+colSums(is.na(hourly_calories))
+colSums(is.na(hourly_intensities))
+colSums(is.na(minute_mets_narrow))
+colSums(is.na(hourly_steps))
+```
+No null/missing values found
+
+## Checking for duplicate rows
+
+```{r}
+sum(duplicated(daily_activity))
+sum(duplicated(daily_calories))
+sum(duplicated(daily_steps))
+sum(duplicated(daily_intensities))
+sum(duplicated(hourly_calories))
+sum(duplicated(hourly_intensities))
+sum(duplicated(hourly_steps))
+sum(duplicated(minute_mets_narrow))
+```
+No duplicates found.
+
+## Check for any extra space and remove it using TRIM() function
+```{r}
+daily_activity <- daily_activity |> 
+  dplyr::mutate(across(where(is.character), trimws))
+daily_calories <- daily_calories |> 
+  dplyr::mutate(across(where(is.character), trimws))
+daily_intensities <- daily_intensities |> 
+  dplyr::mutate(across(where(is.character), trimws))
+daily_steps <- daily_steps |> 
+  dplyr::mutate(across(where(is.character), trimws))
+hourly_calories <- hourly_calories |> 
+  dplyr::mutate(across(where(is.character), trimws))
+hourly_intensities <- hourly_intensities |> 
+  dplyr::mutate(across(where(is.character), trimws))
+hourly_steps <- hourly_steps |> 
+  dplyr::mutate(across(where(is.character), trimws))
+minute_mets_narrow <- minute_mets_narrow |> 
+  dplyr::mutate(across(where(is.character), trimws))
+```
+Columns containing date string contained extra spaces which were trimmed
+
+## DataType Formatting(Check if date,numeric values,string are in correct format)
+```{r}
+enframe(sapply(daily_activity, class), name = "Column", value = "DataType")
+## ##   Daily datasets
+enframe(sapply(daily_intensities, class), name = "Column", value = "DataType")
+enframe(sapply(daily_steps, class), name = "Column", value = "DataType")
+
+## Hourly datasets
+enframe(sapply(hourly_calories, class), name = "Column", value = "DataType")
+enframe(sapply(hourly_intensities, class), name = "Column", value = "DataType")
+enframe(sapply(hourly_steps, class), name = "Column", value = "DataType")
+
+## Minute dataset
+enframe(sapply(minute_mets_narrow, class), name = "Column", value = "DataType")
+
+```
+```{r}
+## Formatting column datatype containing dates from character to Date
+daily_activity$ActivityDate <- as.Date(daily_activity$ActivityDate, format = "%m/%d/%Y")
+daily_calories$ActivityDay <- as.Date(daily_calories$ActivityDay, format = "%m/%d/%Y")
+daily_intensities$ActivityDay <- as.Date(daily_intensities$ActivityDay, format = "%m/%d/%Y")
+daily_steps$ActivityDay <- as.Date(daily_steps$ActivityDay, format = "%m/%d/%Y")
+
+hourly_calories$ActivityHour <- as.POSIXct(hourly_calories$ActivityHour, format = "%m/%d/%Y %I:%M:%S %p")
+
+hourly_steps$ActivityHour <- as.POSIXct(hourly_steps$ActivityHour, format = "%m/%d/%Y %I:%M:%S %p")
+
+hourly_intensities$ActivityHour <- as.POSIXct(hourly_intensities$ActivityHour, format = "%m/%d/%Y %I:%M:%S %p")
+
+minute_mets_narrow$ActivityMinute <- as.POSIXct(minute_mets_narrow$ActivityMinute, format = "%m/%d/%Y %I:%M:%S %p")
+
+```
+
+## Converting minute level MET's data to hourly to match with other datasets.While dropping minute level dataset
+```{r}
+library(dplyr)
+
+## Step 1: Convert ActivityMinute to POSIXct
+minute_mets_narrow$ActivityMinute <- as.POSIXct(minute_mets_narrow$ActivityMinute, format = "%m/%d/%Y %I:%M:%S %p")
+
+##  Step 2: Round down to the hour
+minute_mets_narrow$Hour <- format(minute_mets_narrow$ActivityMinute, "%Y-%m-%d %H:00:00")
+minute_mets_narrow$Hour <- as.POSIXct(minute_mets_narrow$Hour, format = "%Y-%m-%d %H:%M:%S")
+
+##  Step 3: Aggregate METs by Id and Hour
+mets_hourly <- minute_mets_narrow %>%
+  group_by(Id, Hour) %>%
+  summarise(Average_METs = mean(METs, na.rm = TRUE), .groups = "drop")
+
+##  Step 4: View result
+head(mets_hourly)
+rm(minute_mets_narrow)
+```
+
+
+```{r}
+nrow(mets_hourly)
+```
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(purrr)
+
+
+## List of datasets
+datasets <- list(
+  daily_activity = daily_activity,
+  daily_intensities = daily_intensities,
+  daily_steps = daily_steps,
+  hourly_steps = hourly_steps,
+  hourly_intensities = hourly_intensities,
+  hourly_calories = hourly_calories,
+  hourly_mets = mets_hourly
+)
+
+record_counts <- tibble(
+  Dataset = names(datasets),
+  Rows = map_int(datasets, nrow)
+)
+
+ggplot(record_counts, aes(x = Dataset, y = Rows)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  geom_text(aes(label = Rows), vjust = -0.3, size = 4.5) +
+  labs(title = "Record Count by Dataset",
+       x = "Dataset", y = "Number of Rows") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+summary(daily_activity)
+summary(daily_calories)
+summary(daily_intensities)
+summary(daily_steps)
+summary(hourly_calories)
+summary(hourly_intensities)
+summary(hourly_steps)
+```
+# Data Analysis
+
+We will analysze the processed 8 datasets further to find the trends and relationships of smart device usage of FitBit users and how could these trends apply to Bellabeat customers.
+
+Import Libraries
+```{r}
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+```
+
+Data Aggregation
+When you look at the daily_activity dataset,you will see it contain all the information regarding calories,intensities,totat steps which are present as well in other daily_calories,daily_intensities and daily_steps dataset.We will VERIFY data first based on daily level containing all these information.
+
+Verify Calories values in daily_activity and daily_calories dataset
+```{r}
+##  First, align column names and join
+cal_check <- daily_activity %>%
+  select(Id, Date = ActivityDate, Calories_activity = Calories) %>%
+  left_join(daily_calories %>% rename(Date = ActivityDay, Calories_table = Calories), by = c("Id", "Date"))
+
+##  Compare
+all_equal_result_cal <- all.equal(cal_check$Calories_activity, cal_check$Calories_table, check.attributes = FALSE)
+print(all_equal_result_cal)
+```
+
+## Verify Steps values in daily_activity and daily_steps dataset
+```{r}
+steps_check <- daily_activity %>%
+  select(Id, Date=ActivityDate, Steps_activity = TotalSteps) %>%
+  left_join(daily_steps %>% rename(Date = ActivityDay, Steps_table = StepTotal), by = c("Id", "Date"))
+
+all_equal_result_steps <- all.equal(steps_check$Steps_activity, steps_check$Steps_table, check.attributes = FALSE)
+print(all_equal_result_steps)
+```
+
+## Verify Intensities values in daily_activity and daily_intensities dataset
+```{r}
+##  Ensure date columns match
+daily_activity <- daily_activity %>% rename(Date = ActivityDate)
+daily_intensities <- daily_intensities %>% rename(Date = ActivityDay)
+
+##  Join on Id and Date
+joined_df <- daily_activity %>%
+  left_join(daily_intensities, by = c("Id", "Date"), suffix = c("_act", "_int"))
+
+common_cols <- intersect(names(daily_activity), names(daily_intensities))
+common_cols <- setdiff(common_cols, c("Id", "Date"))  ##  exclude keys
+print(common_cols)
+
+
+```
+
+```{r}
+##  Function to check equality for each column
+check_column_match <- function(col) {
+  act_col <- paste0(col, "_act")
+  int_col <- paste0(col, "_int")
+  diff <- abs(joined_df[[act_col]] - joined_df[[int_col]])
+  mismatch_count <- sum(diff > 0, na.rm = TRUE)
+  max_diff <- max(diff, na.rm = TRUE)
+
+  tibble(
+    Column = col,
+    Matches = mismatch_count == 0,
+    Mismatch_Count = mismatch_count,
+    Max_Difference = max_diff
+  )
+}
+
+##  For all shared columns between daily_activity and daily_intensities
+comparison_detailed <- bind_rows(lapply(common_cols, check_column_match))
+print(comparison_detailed)
+```
+Since all values in daily_activity is matching with individual dataset, We can hence drop daily_calories,daily_intensities and daily_steps datasets to simplify our analysis and thereby focus only on daily_activity dataset.
+
+```{r}
+rm(daily_calories,daily_steps,daily_intensities)
+```
+
+## Now combine hourly data into single dataset for calories,intensities and steps as well as MET's
+```{r}
+hourly_steps <- hourly_steps %>% select(Id, ActivityHour, Steps = StepTotal)
+hourly_calories <- hourly_calories %>% select(Id, ActivityHour, Calories)
+hourly_intensities <- hourly_intensities %>% select(Id, ActivityHour, 
+  TotalIntensity, AverageIntensity)
+mets_hourly <- mets_hourly %>% select(Id, ActivityHour=Hour, METs = Average_METs)
+
+names(hourly_steps)
+names(hourly_calories)
+names(hourly_intensities)
+names(mets_hourly)
+
+hourly_combined <- hourly_steps %>%
+  left_join(hourly_calories, by = c("Id", "ActivityHour")) %>%
+  left_join(hourly_intensities, by = c("Id", "ActivityHour")) %>%
+  left_join(mets_hourly, by = c("Id", "ActivityHour"))
+
+```
+```{r}
+colSums(is.na(hourly_combined))
+hourly_combined[!complete.cases(hourly_combined), ]
+```
+
+Since MET's has 6 null values for 05/12/2016.We are going to replace it with 0.
+```{r}
+hourly_combined$METs[is.na(hourly_combined$METs)] <- 0
+sum(is.na(hourly_combined$METs))  
+```
+## Removing individual hourly datasets
+```{r}
+rm(hourly_calories,hourly_intensities,hourly_steps,mets_hourly)
+```
+
+## Exporting cleaned data into csv for future reference/analysis
+```{r}
+
+## write.csv(daily_activity, "daily_activity_clean.csv", row.names = FALSE)
+## write.csv(hourly_combined, "hourly_combined_clean.csv", row.names = FALSE)
+
+```
+
+## Add derived fields:
+We are adding fields such as Week,weekday,whether if its a weekend or not,year to simplify our analysis for clear reporting.
+```{r}
+daily_activity$Weekday <- weekdays(daily_activity$Date)
+
+daily_activity <- daily_activity %>%
+  mutate(Week = isoweek(Date), Year = year(Date))
+
+daily_activity$IsWeekend <- ifelse(daily_activity$Weekday %in% c("Saturday", "Sunday"), "Weekend", "Weekday")
+```
+
+## Categorize users
+```{r}
+daily_activity$ActivityLevel <- case_when(
+  daily_activity$TotalSteps < 5000 ~ "Low",
+  daily_activity$TotalSteps < 10000 ~ "Moderate",
+  TRUE ~ "High"
+)
+```
+
+## Calculate Average Daily Metrics (Per User)
+```{r}
+daily_summary <- daily_activity %>%
+  group_by(Id) %>%
+  summarise(
+    Avg_Daily_Steps = mean(TotalSteps, na.rm = TRUE),
+    Avg_Daily_Calories = mean(Calories, na.rm = TRUE),
+    Total_Active_Minutes = mean(VeryActiveMinutes + FairlyActiveMinutes + LightlyActiveMinutes, na.rm = TRUE),
+    Sedentary_Minutes = mean(SedentaryMinutes, na.rm = TRUE)
+  )
+daily_summary
+```
+## Show the relationship between physical activity and energy expenditure
+```{r}
+ggplot(daily_summary, aes(x = Avg_Daily_Steps, y = Avg_Daily_Calories)) +
+  geom_point(color = "tomato", size = 3, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, color = "darkblue") +
+  labs(title = "Relationship Between Steps and Calories Burned",
+       x = "Average Daily Steps", y = "Average Daily Calories") +
+  theme_minimal()
+
+```
+This chart shows a positive correlation between average daily steps and calories burned — users who take more steps generally burn more calories. The trend line confirms this relationship, though individual differences exist. This insight supports promoting step-based goals to boost calorie expenditure among Bellabeat users.
+
+## Determine Hourly Peak Activity Time
+```{r}
+hourly_combined %>%
+  mutate(HourOnly = format(ActivityHour, "%H")) %>%
+  group_by(HourOnly) %>%
+  summarise(
+    Avg_Steps = mean(Steps, na.rm = TRUE),
+    Avg_Calories = mean(Calories, na.rm = TRUE),
+    Avg_METs = mean(METs, na.rm = TRUE)
+  ) %>%
+  arrange(desc(Avg_METs))  ##  or Avg_Steps, etc.
+```
+This table identifies peak hours of user activity based on aggregated hourly data across all users. It shows that 6 PM to 8 PM (18:00–20:00) is when users are most active, with the highest average steps, calories burned, and METs. This insight can help Bellabeat optimize push notifications, workout reminders, or feature prompts during these hours to align with natural user behavior and maximize engagement.
+
+## Calculate Weekly Consistency (Standard Deviation)
+
+```{r}
+## Calculate weekly step standard deviation per user
+weekly_sd <- daily_activity %>%
+  group_by(Id, Year, Week) %>%
+  summarise(
+    Step_SD = sd(TotalSteps, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+## Average the standard deviation across weeks per user
+weekly_user_consistency <- weekly_sd %>%
+  group_by(Id) %>%
+  summarise(
+    Avg_Step_SD = mean(Step_SD, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+## Plot histogram of consistency
+ggplot(weekly_user_consistency, aes(x = Avg_Step_SD)) +
+  geom_histogram(fill = "seagreen", bins = 20) +
+  labs(
+    title = "Weekly Step Consistency (Standard Deviation)",
+    x = "Step SD", y = "User Count"
+  ) +
+  theme_minimal()
+```
+This histogram illustrates how consistent users are with their daily step counts each week. Most users fall within a moderate consistency range (step SD ~2500–3000), while some show high variability in activity. Users with higher standard deviation may benefit from habit-building support. This insight can help Bellabeat personalize engagement strategies for different user types.
+
+## Exporting cleaned data into csv for sharing visualization in Tableau
+```{r}
+
+#write.csv(daily_activity, "daily_activity_clean_tableau.csv", row.names = FALSE)
+#write.csv(hourly_combined, "hourly_combined_clean_tableau.csv", row.names = FALSE)
+#write.csv(daily_summary, "user_summary_clean_tableau.csv", row.names = FALSE)
+#write.csv(weekly_user_consistency, "weekly_user_consistency_clean_tableau.csv", row.names = FALSE)
+```
+
+
+
+
+
+
+
+
+
