@@ -1,4 +1,4 @@
-# Bellabeat Users Wellness Analysis
+# Bellabeat Users Wellness Analysis using R ans SQL
 
 📊 View the interactive Tableau dashboard:  
 [Open Dashboard](https://public.tableau.com/app/profile/akanksha.jondhale/viz/Bellafits_Tableau_Report/Dashboard1)
