@@ -10,6 +10,6 @@ Analyzed Fitbit data using R and Tableau to uncover activity, sleep, and intensi
 📄 View Full Analysis Report (PDF):  
 [Open Report](https://github.com/akankshaj2712/Bellabeat_User_Analysis/blob/main/Bellabeat_Analysis.pdf)
 
-View Data Source:
+📄 View Data Source:  
 [FitBit Fitness Tracker Data](https://www.kaggle.com/datasets/arashnic/fitbit)
 
