@@ -5,3 +5,8 @@
 
 📄 View the R Markdown cleaning report:  
 [View HTML Report](https://htmlpreview.github.io/?https://raw.githubusercontent.com/akankshaj2712/Bellabeat_User_Analysis/refs/heads/main/Bellafit-s_Data_Project_R.html)
+
+📄 View Full Analysis Report (PDF):  
+[Open Report](https://github.com/akankshaj2712/Bellabeat_User_Analysis/blob/main/Bellabeat_Analysis.pdf)
+
+
